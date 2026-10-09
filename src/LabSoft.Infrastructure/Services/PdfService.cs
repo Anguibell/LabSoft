@@ -44,13 +44,22 @@ namespace LabSoft.Infrastructure.Services
             // Extracción de datos del paciente
             var pacienteNombre = orden.Paciente != null ? $"{orden.Paciente.Nombre} {orden.Paciente.Apellido}" : "N/A";
 
-            // Manejo de la cédula considerando la bandera de recién nacido
+            // Manejo de la cédula considerando la bandera de recién nacido o menor sin ID
             var pacienteCedula = "N/A";
             if (orden.Paciente != null)
             {
-                pacienteCedula = orden.Paciente.EsRecienNacido 
-                    ? "Recién Nacido" 
-                    : (string.IsNullOrWhiteSpace(orden.Paciente.Cedula) ? "N/A" : orden.Paciente.Cedula);
+                if (orden.Paciente.EsRecienNacido)
+                {
+                    // Misma lógica del frontend: Si la edad (precalculada) contiene "meses" o "días", es Recién Nacido.
+                    bool esRecienNacido = orden.Paciente.EdadFormateada.Contains("meses", StringComparison.OrdinalIgnoreCase) || 
+                                        orden.Paciente.EdadFormateada.Contains("días", StringComparison.OrdinalIgnoreCase);
+                    
+                    pacienteCedula = esRecienNacido ? "Recién Nacido" : "Menor sin ID";
+                }
+                else
+                {
+                    pacienteCedula = string.IsNullOrWhiteSpace(orden.Paciente.Cedula) ? "N/A" : orden.Paciente.Cedula;
+                }
             }
 
             // Conversión directa del Enum a string
@@ -207,24 +216,52 @@ namespace LabSoft.Infrastructure.Services
                                     {
                                         if (string.IsNullOrWhiteSpace(valorRaw)) return "";
 
+                                        // Estandarizamos separador decimal temporalmente para la validación
                                         var valStr = valorRaw.Trim().Replace(',', '.');
 
-                                        // Si es un número válido, aplicamos el formato
+                                        // Si es un número válido, evaluamos cómo formatearlo
                                         if (decimal.TryParse(valStr, NumberStyles.Any, CultureInfo.InvariantCulture, out var valorNum))
                                         {
-                                            if (decimalesRequeridos.HasValue)
+                                            // 1. Si la base de datos exige un número específico de decimales (ej. Hemoglobina exige 1)
+                                            if (decimalesRequeridos.HasValue && decimalesRequeridos.Value > 0)
                                             {
-                                                // Genera dinámicamente el formato (ej. "F1" para 1 decimal, "F0" para 0)
                                                 return valorNum.ToString($"F{decimalesRequeridos.Value}", CultureInfo.InvariantCulture);
                                             }
                                             
-                                            // Si no hay configuración en la BD, devuelve el número sin forzar ceros extra
-                                            return valorNum.ToString(CultureInfo.InvariantCulture); 
+                                            // 2. Si es 0 o null, respetamos exactamente cómo lo ingresó el usuario.
+                                            // Convertimos el número evaluado usando el formato "G" (General) o "#.##" 
+                                            // que elimina los ceros a la derecha innecesarios, pero conserva los decimales si los tiene.
+                                            // Además, lo devolvemos usando el separador estandarizado (.)
+                                            return valorNum.ToString("0.###", CultureInfo.InvariantCulture); 
                                         }
 
                                         // Si es texto (ej. "POSITIVO"), lo devuelve tal cual
                                         return valorRaw;
                                     }
+
+                                    // Función auxiliar centralizada para limpiar y formatear los resultados (decimales y mayúsculas)
+                                    // string FormatearValor(string? valorRaw, int? decimalesRequeridos)
+                                    // {
+                                    //     if (string.IsNullOrWhiteSpace(valorRaw)) return "";
+
+                                    //     var valStr = valorRaw.Trim().Replace(',', '.');
+
+                                    //     // Si es un número válido, aplicamos el formato
+                                    //     if (decimal.TryParse(valStr, NumberStyles.Any, CultureInfo.InvariantCulture, out var valorNum))
+                                    //     {
+                                    //         if (decimalesRequeridos.HasValue)
+                                    //         {
+                                    //             // Genera dinámicamente el formato (ej. "F1" para 1 decimal, "F0" para 0)
+                                    //             return valorNum.ToString($"F{decimalesRequeridos.Value}", CultureInfo.InvariantCulture);
+                                    //         }
+                                            
+                                    //         // Si no hay configuración en la BD, devuelve el número sin forzar ceros extra
+                                    //         return valorNum.ToString(CultureInfo.InvariantCulture); 
+                                    //     }
+
+                                    //     // Si es texto (ej. "POSITIVO"), lo devuelve tal cual
+                                    //     return valorRaw;
+                                    // }
 
                                     // Función auxiliar para evaluar si el resultado está fuera del rango de referencia
                                     bool EsAnormal(string? valorRaw, string? referencia)
@@ -502,7 +539,7 @@ namespace LabSoft.Infrastructure.Services
                         footer.Item().PaddingTop(5).Row(row =>
                         {
                             // Izquierda: Contacto
-                            row.RelativeItem().Text("Tlf: 0424-6408937 | Correo: labgenesis@gmail.com | Ig: @LabGenesis").FontSize(8).FontColor(Colors.Grey.Medium);
+                            row.RelativeItem().Text("Tlf: 0412-6670384 | Correo: labgenesis@gmail.com | Ig: @LabGenesis").FontSize(8).FontColor(Colors.Grey.Medium);
                             
                             // Derecha: Paginación y Software
                             row.RelativeItem().AlignRight().Text(x =>

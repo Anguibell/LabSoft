@@ -140,9 +140,21 @@ public class ExamenRepository : IExamenRepository
         await _context.SaveChangesAsync();
     }
 
-    public async Task UpdateAsync(Examen examen)
+    
+public async Task UpdateAsync(Examen examen)
+{
+    // El examen debe haberse cargado y estar siendo rastreado
+    // por este mismo DbContext.
+    var entry = _context.Entry(examen);
+
+    if (entry.State == EntityState.Detached)
     {
-        _context.Examenes.Update(examen);
-        await _context.SaveChangesAsync();
+        throw new InvalidOperationException(
+            "El examen debe cargarse con el mismo DbContext antes de actualizarlo.");
     }
+
+    // EF Core detectará automáticamente los cambios del examen,
+    // las modificaciones de los parámetros y las entidades nuevas.
+    await _context.SaveChangesAsync();
+}
 }
