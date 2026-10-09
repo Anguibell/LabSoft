@@ -1,6 +1,7 @@
-import { Users, ClipboardList, Activity, CheckCircle, Clock } from 'lucide-react';
+import { Users, ClipboardList, Activity, CheckCircle, Clock, BookOpen, LayoutGrid, ArrowRight } from 'lucide-react';
 import { useDashboardStats } from '../hooks/useDashboard';
 import { useNavigate } from 'react-router-dom';
+import { ROUTES } from '../../../routes/routeConfig';
 
 export default function DashboardPage() {
   const { data: stats, isLoading, isError } = useDashboardStats();
@@ -45,6 +46,26 @@ export default function DashboardPage() {
     },
   ];
 
+  // Configuración de los accesos directos a módulos
+  const quickModules = [
+    {
+      title: 'Catálogo de Exámenes',
+      description: 'Gestión de pruebas de laboratorio, precios y valores de referencia.',
+      icon: <BookOpen className="w-6 h-6 text-purple-600" />,
+      bg: 'bg-purple-50',
+      border: 'border-purple-200',
+      path: ROUTES.CATALOG,
+    },
+    {
+      title: 'Paneles (Perfiles)',
+      description: 'Configuración de perfiles predefinidos (Ej. Perfil 20, Preoperatorio).',
+      icon: <LayoutGrid className="w-6 h-6 text-teal-600" />,
+      bg: 'bg-teal-50',
+      border: 'border-teal-200',
+      path: ROUTES.PANELS, 
+    }
+  ];
+
   return (
     <div className="space-y-6 animate-in fade-in duration-300">
       <div>
@@ -68,6 +89,75 @@ export default function DashboardPage() {
           </div>
         ))}
       </div>
+
+      {/* NUEVA SECCIÓN: Accesos Rápidos a Módulos */}
+      {/* <div>
+        <h2 className="text-lg font-bold text-[#15243b] mb-4 flex items-center gap-2">
+           Accesos Rápidos
+        </h2>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {quickModules.map((module, idx) => (
+            <Link 
+              key={idx} 
+              to={module.path}
+              className="bg-white p-5 rounded-xl border border-[#dce5ef] shadow-sm flex items-start gap-4 hover:border-blue-400 hover:shadow-md transition-all group"
+            >
+              <div className={`p-3 rounded-lg ${module.bg} ${module.border} border shrink-0`}>
+                {module.icon}
+              </div>
+              <div className="flex-1">
+                <h3 className="text-[#15243b] font-bold mb-1 group-hover:text-blue-600 transition-colors">
+                  {module.title}
+                </h3>
+                <p className="text-sm text-[#64768b]">
+                  {module.description}
+                </p>
+              </div>
+              <div className="shrink-0 self-center opacity-0 group-hover:opacity-100 transition-opacity">
+                 <ArrowRight className="w-5 h-5 text-blue-500" />
+              </div>
+            </Link>
+          ))}
+        </div>
+      </div> */}
+
+{/* Accesos Rápidos a Módulos */}
+<div>
+  <h2 className="mb-4 flex items-center gap-2 text-lg font-bold text-[#15243b]">
+    Accesos Rápidos
+  </h2>
+
+  <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+    {quickModules.map((module) => (
+      <button
+        key={module.path}
+        type="button"
+        onClick={() => navigate(module.path)}
+        className="group flex w-full items-start gap-4 rounded-xl border border-[#dce5ef] bg-white p-5 text-left shadow-sm transition-all hover:border-blue-400 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2"
+      >
+        <div
+          className={`shrink-0 rounded-lg border p-3 ${module.bg} ${module.border}`}
+        >
+          {module.icon}
+        </div>
+
+        <div className="min-w-0 flex-1">
+          <h3 className="mb-1 font-bold text-[#15243b] transition-colors group-hover:text-blue-600">
+            {module.title}
+          </h3>
+
+          <p className="text-sm text-[#64768b]">
+            {module.description}
+          </p>
+        </div>
+
+        <div className="shrink-0 self-center opacity-0 transition-opacity group-hover:opacity-100 group-focus-visible:opacity-100">
+          <ArrowRight className="h-5 w-5 text-blue-500" />
+        </div>
+      </button>
+    ))}
+  </div>
+</div>
 
       {/* Tabla de Órdenes Recientes */}
       <div className="bg-white rounded-xl border border-[#dce5ef] shadow-sm overflow-hidden">
