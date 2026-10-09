@@ -109,9 +109,9 @@ builder.Services.AddValidatorsFromAssemblyContaining<LabSoft.Application.Validat
 // QUITAR ESTA Y LA LINEA DE ABAJOOOOO app.UseCors("AllowFrontend");
 builder.Services.AddCors(options =>
 {
-    options.AddPolicy("AllowFrontend", policy =>
+    options.AddPolicy("AllowWebApp", policy =>
     {
-        policy.WithOrigins("http://localhost:5173") // El puerto exacto de tu frontend Vite
+        policy.WithOrigins("https://lab-soft.vercel.app") 
               .AllowAnyHeader()
               .AllowAnyMethod();
     });
@@ -156,7 +156,7 @@ app.UseHttpsRedirection();
 
 // AGREGAR ESTO PARA PROBAR FRONTEND LUEGO QUITARLOOOOOOOOOOOOOOOOO
 // QUITAR ESTA Y LA LINEA DE ARRIBAAAAAAAAAAAAAAAA builder.Services.AddCors
-app.UseCors("AllowFrontend");
+app.UseCors("AllowWebApp");
 
 // 2. ORDEN DE SEGURIDAD (Primero autenticar quién es, luego autorizar qué puede hacer)
 app.UseAuthentication();
