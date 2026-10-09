@@ -164,17 +164,20 @@ public class ResultadoRepository : IResultadoRepository
                     .ThenInclude(o => o.Paciente)
             .AsQueryable();
 
-        // Filtro de texto libre (Examen o Paciente)
+        // Filtro de texto libre (Examen o Paciente o Nro. Orden)
         if (!string.IsNullOrWhiteSpace(filter.TerminoBusqueda))
         {
             var termino = filter.TerminoBusqueda.ToLower().Trim();
+            var terminoNumero = termino.Replace("#ord-", "").TrimStart('0'); // Limpia el formato visual
+
             query = query.Where(r => 
                 (r.Examen != null && r.Examen.Nombre.ToLower().Contains(termino)) ||
                 (r.OrdenDetalle.Orden.Paciente != null && (
                     r.OrdenDetalle.Orden.Paciente.Nombre.ToLower().Contains(termino) ||
                     r.OrdenDetalle.Orden.Paciente.Apellido.ToLower().Contains(termino) ||
                     (r.OrdenDetalle.Orden.Paciente.Cedula != null && r.OrdenDetalle.Orden.Paciente.Cedula.Contains(termino))
-                ))
+                )) ||
+                (r.OrdenDetalle.Orden.NumeroOrden.ToString().Contains(terminoNumero)) // <-- AHORA SÍ TIENE LA VARIABLE
             );
         }
 

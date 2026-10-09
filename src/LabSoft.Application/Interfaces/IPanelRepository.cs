@@ -8,4 +8,6 @@ public interface IPanelRepository
     Task<Panel?> GetByIdAsync(Guid id);
     Task AddAsync(Panel panel);
     Task UpdateAsync(Panel panel);
+    Task DeleteAsync(Guid id);
+    Task<int> GetNextCodigoAsync();
 }

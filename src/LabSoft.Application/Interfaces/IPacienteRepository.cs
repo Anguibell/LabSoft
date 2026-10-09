@@ -9,5 +9,6 @@ public interface IPacienteRepository
     Task<Paciente?> GetByIdAsync(Guid id);
     Task UpdateAsync(Paciente paciente);
     Task AddAsync(Paciente paciente);
+    Task<bool> ExisteCedulaAsync(string cedula, Guid? pacienteIdAExcluir = null);
     Task<(IEnumerable<Paciente> Pacientes, int TotalRecords)> GetPacientesPaginadosAsync(PacienteQueryFilter filter);
 }

@@ -238,6 +238,9 @@ namespace LabSoft.Infrastructure.Migrations
                     b.Property<bool>("Activo")
                         .HasColumnType("boolean");
 
+                    b.Property<int>("Codigo")
+                        .HasColumnType("integer");
+
                     b.Property<string>("Nombre")
                         .IsRequired()
                         .HasColumnType("text");
@@ -278,11 +281,20 @@ namespace LabSoft.Infrastructure.Migrations
                     b.Property<Guid>("ExamenId")
                         .HasColumnType("uuid");
 
+                    b.Property<DateTime?>("FechaInvalidacion")
+                        .HasColumnType("timestamp with time zone");
+
                     b.Property<DateTime>("FechaProcesamiento")
                         .HasColumnType("timestamp with time zone");
 
                     b.Property<bool>("ImprimirObservacion")
                         .HasColumnType("boolean");
+
+                    b.Property<Guid?>("InvalidadoPorId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("MotivoInvalidacion")
+                        .HasColumnType("text");
 
                     b.Property<string>("NotaClinica")
                         .HasColumnType("text");
@@ -318,6 +330,10 @@ namespace LabSoft.Infrastructure.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uuid");
 
+                    b.Property<string>("Apellido")
+                        .IsRequired()
+                        .HasColumnType("text");
+
                     b.Property<string>("Domicilio")
                         .HasColumnType("text");
 
@@ -330,6 +346,10 @@ namespace LabSoft.Infrastructure.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("timestamp with time zone")
                         .HasDefaultValueSql("CURRENT_TIMESTAMP");
+
+                    b.Property<string>("Nombre")
+                        .IsRequired()
+                        .HasColumnType("text");
 
                     b.Property<string>("NombreUsuario")
                         .IsRequired()

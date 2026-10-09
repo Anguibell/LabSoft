@@ -27,7 +27,13 @@ public static class EstructuraClinicaHelper
                 var nodo = MapearRecursivo(detalle.Examen!, detalle.Resultados.ToList(), sexoPaciente);
                 if (nodo != null)
                 {
-                    examenes.Add(nodo);
+                    // --- CAMBIO CLAVE AQUÍ ---
+                    // Envolvemos el árbol de exámenes con su respectivo OrdenDetalleId
+                    examenes.Add(new
+                    {
+                        OrdenDetalleId = detalle.Id,
+                        Arbol = nodo
+                    });
                 }
             }
 
@@ -66,16 +72,18 @@ public static class EstructuraClinicaHelper
         // 4. INFERENCIA BOTTOM-UP (Los padres heredan el estado de los hijos)
         if (hijos.Any())
         {
-            bool todosProcesados = hijos.All(h => h.Estado == "Procesado" || h.Estado == "Validado");
-            estado = todosProcesados ? "Procesado" : "Pendiente";
+            bool todosValidados = hijos.All(h => h.Estado == "Validado");
+            bool todosProcesadosOValidados = hijos.All(h => h.Estado == "Procesado" || h.Estado == "Validado");
+
+            if (todosValidados) 
+                estado = "Validado";
+            else if (todosProcesadosOValidados) 
+                estado = "Procesado";
+            else 
+                estado = "Pendiente";
             
-            var fechasHijos = hijos.Where(h => h.FechaProcesamiento != null)
-                                   .Select(h => (DateTime)h.FechaProcesamiento)
-                                   .ToList();
-            if (fechasHijos.Any())
-            {
-                fecha = fechasHijos.Max();
-            }
+            var fechasHijos = hijos.Where(h => h.FechaProcesamiento != null).Select(h => (DateTime)h.FechaProcesamiento).ToList();
+            if (fechasHijos.Any()) fecha = fechasHijos.Max();
         }
 
         // 5. VALORES DE REFERENCIA DINÁMICOS

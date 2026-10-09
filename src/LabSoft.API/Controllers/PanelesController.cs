@@ -25,10 +25,58 @@ public class PanelesController : ControllerBase
         return Ok(paneles.Select(p => new PanelDto
         {
             Id = p.Id,
+            Codigo = p.Codigo,
             Nombre = p.Nombre,
             Activo = p.Activo,
-            Examenes = p.PanelExamenes.Select(pe => new ExamenSimpleDto { Id = pe.ExamenId, Nombre = pe.Examen.Nombre }).ToList()
+            // Reutilizamos tu lógica de mapeo de exámenes o mapeamos directamente:
+            Examenes = p.PanelExamenes
+                .OrderBy(pe => pe.Examen.Orden) // Respetamos el orden general
+                .Select(pe => MapearExamenADto(pe.Examen)).ToList()
         }));
+    }
+
+    [HttpGet("{id}")]
+    public async Task<ActionResult<PanelDto>> GetById(Guid id)
+    {
+        var panel = await _panelRepository.GetByIdAsync(id);
+        if (panel == null) return NotFound(new { mensaje = "Panel no encontrado." });
+
+        return Ok(new PanelDto
+        {
+            Id = panel.Id,
+            Codigo = panel.Codigo,
+            Nombre = panel.Nombre,
+            Activo = panel.Activo,
+            Examenes = panel.PanelExamenes
+                .OrderBy(pe => pe.Examen.Orden)
+                .Select(pe => MapearExamenADto(pe.Examen)).ToList()
+        });
+    }
+
+    // Método auxiliar 
+    private ExamenDto MapearExamenADto(Examen examen)
+    {
+        return new ExamenDto
+        {
+            Id = examen.Id,
+            Codigo = examen.Codigo,
+            Nombre = examen.Nombre,
+            EspecialidadId = examen.EspecialidadId,
+            EspecialidadNombre = examen.Especialidad?.Nombre ?? string.Empty,
+            Orden = examen.Orden,
+            Precio = examen.Precio,
+            Unidad = examen.Unidad,
+            ValoresReferencia = examen.ValoresReferencia,
+            ValoresReferenciaM = examen.ValoresReferenciaM,
+            ValoresReferenciaF = examen.ValoresReferenciaF,
+            Activo = examen.Activo,
+            EsOpcionalDinamico = examen.EsOpcionalDinamico,
+            DecimalesRequeridos = examen.DecimalesRequeridos,
+            // Recursividad para mantener el árbol ordenado
+            SubExamenes = examen.SubExamenes?
+                .OrderBy(s => s.Orden)
+                .Select(MapearExamenADto).ToList() ?? new List<ExamenDto>()
+        };
     }
 
     [HttpPost]
@@ -37,34 +85,13 @@ public class PanelesController : ControllerBase
         var panel = new Panel
         {
             Id = Guid.NewGuid(),
+            Codigo = await _panelRepository.GetNextCodigoAsync(),
             Nombre = dto.Nombre,
             PanelExamenes = dto.ExamenIds.Select(id => new PanelExamen { ExamenId = id }).ToList()
         };
 
         await _panelRepository.AddAsync(panel);
         return CreatedAtAction(nameof(GetAll), new { id = panel.Id }, null);
-    }
-
-    [HttpGet("{id}")]
-    public async Task<ActionResult<PanelDto>> GetById(Guid id)
-    {
-        var panel = await _panelRepository.GetByIdAsync(id);
-        if (panel == null)
-        {
-            return NotFound(new { mensaje = "Panel no encontrado." });
-        }
-
-        return Ok(new PanelDto
-        {
-            Id = panel.Id,
-            Nombre = panel.Nombre,
-            Activo = panel.Activo,
-            Examenes = panel.PanelExamenes.Select(pe => new ExamenSimpleDto 
-            { 
-                Id = pe.ExamenId, 
-                Nombre = pe.Examen.Nombre 
-            }).ToList()
-        });
     }
 
     [HttpPut("{id}")]
@@ -87,6 +114,19 @@ public class PanelesController : ControllerBase
 
         await _panelRepository.UpdateAsync(panel);
 
+        return NoContent();
+    }
+
+    [HttpDelete("{id}")]
+    public async Task<IActionResult> Delete(Guid id)
+    {
+        var panel = await _panelRepository.GetByIdAsync(id);
+        if (panel == null)
+        {
+            return NotFound(new { mensaje = "Panel no encontrado." });
+        }
+
+        await _panelRepository.DeleteAsync(id);
         return NoContent();
     }
 

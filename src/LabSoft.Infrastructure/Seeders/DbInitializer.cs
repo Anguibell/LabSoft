@@ -15,6 +15,9 @@ public static class DbInitializer
         // Asegurar que la base de datos esté creada
         await context.Database.EnsureCreatedAsync();
 
+        // 1. Crear usuario administrador por defecto
+        await SeedUsuarioAdminAsync(context);
+
         // ==========================================
         // 1. CREACIÓN DE LAS 10 ESPECIALIDADES (1 - 10)
         // ==========================================
@@ -758,7 +761,7 @@ public static class DbInitializer
         var listaInmunologia = new List<Examen> 
         {
             new Examen { Id = Guid.NewGuid(), Codigo = 401, Nombre = "VDRL", Unidad = "", ValoresReferencia = "No Reactivo", Precio = 0.00m, Activo = true, EspecialidadId = espInmunologia.Id },
-            new Examen { Id = Guid.NewGuid(), Codigo = 402, Nombre = "HIV 1 Y 2", Unidad = "", ValoresReferencia = "No Reactivo", Precio = 0.00m, Activo = true, EspecialidadId = espInmunologia.Id },
+            new Examen { Id = Guid.NewGuid(), Codigo = 402, Nombre = "HIV", Unidad = "", ValoresReferencia = "No Reactivo", Precio = 0.00m, Activo = true, EspecialidadId = espInmunologia.Id },
             new Examen { Id = Guid.NewGuid(), Codigo = 403, Nombre = "PROTEINA C REACTIVA CUANTITATIVA", Unidad = "mg/L", ValoresReferencia = "< 6.0", Precio = 0.00m, Activo = true, EspecialidadId = espInmunologia.Id },
             new Examen { Id = Guid.NewGuid(), Codigo = 404, Nombre = "FACTOR REUMATOIDEO", Unidad = "UI/mL", ValoresReferencia = "< 14.0", Precio = 0.00m, Activo = true, EspecialidadId = espInmunologia.Id },
             new Examen { Id = Guid.NewGuid(), Codigo = 405, Nombre = "ANTIESTREPTOLISINA O", Unidad = "UI/mL", ValoresReferencia = "< 200", Precio = 0.00m, Activo = true, EspecialidadId = espInmunologia.Id },
@@ -1630,6 +1633,30 @@ public static class DbInitializer
             await context.Especialidades.AddAsync(especialidad);
         }
         return especialidad;
+    }
+
+    private static async Task SeedUsuarioAdminAsync(LabSoftDbContext context)
+    {
+        var emailAdmin = "yasmin@labgenesis.com"; // Correo oficial de acceso
+        
+        if (!await context.Usuarios.AnyAsync(u => u.Email == emailAdmin))
+        {
+            var admin = new Usuario
+            {
+                Id = Guid.NewGuid(),
+                Nombre = "Yasmin",
+                Apellido = "Moreno",
+                NombreUsuario = "yasmin.moreno",
+                Email = emailAdmin,
+                // Utilizamos el mismo algoritmo BCrypt de tu AuthController
+                PasswordHash = BCrypt.Net.BCrypt.HashPassword("LabGenesis2026*"), 
+                Rol = "BIOANALISTA", // Asegúrate de que coincida con tu RolesConstantes
+                FechaCreacion = DateTime.UtcNow
+            };
+            
+            await context.Usuarios.AddAsync(admin);
+            await context.SaveChangesAsync();
+        }
     }
 
 }

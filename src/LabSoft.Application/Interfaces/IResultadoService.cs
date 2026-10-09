@@ -11,6 +11,7 @@ public interface IResultadoService
     Task<bool> ActualizarResultadoAsync(Guid id, ActualizarResultadoDto dto);
     Task<object?> GetResultadosPorOrdenIdAsync(Guid ordenId);
     Task<IEnumerable<object>> GetResultadosPorCedulaAsync(string cedula);
+    Task<bool> InvalidarResultadoAsync(Guid id, InvalidarResultadoDto dto);
     Task<bool> ValidarOrdenCompletaAsync(Guid ordenId);
     //HISTORICO
     Task<IEnumerable<object>> GetHistoricoOrdenesAsync(string? cedula, DateTime? fechaInicio, DateTime? fechaFin);

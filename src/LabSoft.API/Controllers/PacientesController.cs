@@ -35,6 +35,7 @@ public class PacientesController : ControllerBase
             Nombre = p.Nombre,
             Apellido = p.Apellido,
             FechaNacimiento = p.FechaNacimiento,
+            EdadFormateada = p.EdadFormateada,
             Sexo = p.Sexo,
             Telefono = p.Telefono,
             TelefonoAlternativo = p.TelefonoAlternativo,
@@ -45,6 +46,8 @@ public class PacientesController : ControllerBase
             NumeroAfiliado = p.NumeroAfiliado,
             Parentesco = p.Parentesco,
             TitularId = p.TitularId,
+            TitularNombre = p.Titular != null ? $"{p.Titular.Nombre} {p.Titular.Apellido}" : null,
+            TitularCedula = p.Titular?.Cedula,
 
             // ASIGNACIONES NUEVAS: Calculamos la data al vuelo
             TotalOrdenes = p.TotalOrdenes,
@@ -66,23 +69,68 @@ public class PacientesController : ControllerBase
 
     // GET: api/pacientes/5
     [HttpGet("{id:guid}")]
-    public async Task<ActionResult<Paciente>> GetPacienteById(Guid id)
+    public async Task<ActionResult<PacienteDto>> GetPacienteById(Guid id)
     {
-        var paciente = await _pacienteRepository.GetByIdAsync(id);
+        var p = await _pacienteRepository.GetByIdAsync(id);
 
-        if (paciente == null)
+        if (p == null) return NotFound();
+
+        var dto = new PacienteDto
         {
-            return NotFound();
-        }
+            Id = p.Id,
+            Cedula = p.Cedula,
+            EsRecienNacido = p.EsRecienNacido,
+            Nombre = p.Nombre,
+            Apellido = p.Apellido,
+            FechaNacimiento = p.FechaNacimiento,
+            EdadFormateada = p.EdadFormateada,
+            Sexo = p.Sexo,
+            Telefono = p.Telefono,
+            TelefonoAlternativo = p.TelefonoAlternativo,
+            Correo = p.Correo,
+            CorreoAlternativo = p.CorreoAlternativo,
+            Domicilio = p.Domicilio,
+            NotaMedica = p.NotaMedica,
+            NumeroAfiliado = p.NumeroAfiliado,
+            Parentesco = p.Parentesco,
+            TitularId = p.TitularId,
+            TitularNombre = p.Titular != null ? $"{p.Titular.Nombre} {p.Titular.Apellido}" : null,
+            TitularCedula = p.Titular?.Cedula
+        };
 
-        return Ok(paciente);
+        return Ok(dto);
     }
 
     // POST: api/pacientes
     [HttpPost]
     public async Task<ActionResult> CreatePaciente([FromBody] PacienteDto dto)
     {
-        // Mapeamos manualmente el DTO a la entidad
+        // 1. VALIDACIÓN: Cédula única
+        if (!string.IsNullOrWhiteSpace(dto.Cedula))
+        {
+            bool existe = await _pacienteRepository.ExisteCedulaAsync(dto.Cedula);
+            if (existe) 
+            {
+                return BadRequest(new { message = "La cédula ingresada ya se encuentra registrada en otro paciente." });
+            }
+        }
+
+        // 2. VALIDACIÓN: El representante debe existir y NO puede ser un menor sin ID
+        if (dto.TitularId.HasValue)
+        {
+            var titular = await _pacienteRepository.GetByIdAsync(dto.TitularId.Value);
+            if (titular == null)
+            {
+                return BadRequest(new { message = "El representante legal seleccionado no existe en el sistema." });
+            }
+            // --> NUEVA REGLA DE NEGOCIO <--
+            if (titular.EsRecienNacido || string.IsNullOrWhiteSpace(titular.Cedula)) 
+            {
+                return BadRequest(new { message = "El paciente seleccionado no posee un documento de identidad válido para ser representante legal." });
+            }
+        }
+
+        // 3. Mapeo del DTO a la Entidad (Solo datos propios de la tabla)
         var paciente = new Paciente
         {
             Id = Guid.NewGuid(),
@@ -90,7 +138,7 @@ public class PacientesController : ControllerBase
             EsRecienNacido = dto.EsRecienNacido,
             Nombre = dto.Nombre,
             Apellido = dto.Apellido,
-            FechaNacimiento = dto.FechaNacimiento,
+            FechaNacimiento = DateTime.SpecifyKind(dto.FechaNacimiento, DateTimeKind.Utc),
             Sexo = dto.Sexo,
             Telefono = dto.Telefono,
             TelefonoAlternativo = dto.TelefonoAlternativo,
@@ -110,39 +158,64 @@ public class PacientesController : ControllerBase
 
     // PUT: api/pacientes/5
     [HttpPut("{id:guid}")]
-    public async Task<IActionResult> UpdatePaciente(Guid id, [FromBody] Paciente paciente)
+    public async Task<IActionResult> UpdatePaciente(Guid id, [FromBody] PacienteDto dto) // AHORA USA DTO
     {
-        if (id != paciente.Id)
+        if (id != dto.Id)
         {
-            return BadRequest("El ID de la URL no coincide con el ID del objeto.");
+            return BadRequest(new { message = "El ID de la URL no coincide con el ID del objeto." });
+        }
+
+        // 1. VALIDACIÓN: Cédula única (IGNORANDO AL PACIENTE ACTUAL PARA PERMITIR EDICIÓN)
+        if (!string.IsNullOrWhiteSpace(dto.Cedula))
+        {
+            bool existe = await _pacienteRepository.ExisteCedulaAsync(dto.Cedula, id); // <-- CORREGIDO: Se pasa el ID
+            if (existe) 
+            {
+                return BadRequest(new { message = "La cédula ingresada ya pertenece a otro paciente registrado." });
+            }
+        }
+
+        // 2. VALIDACIÓN: El representante debe existir y NO puede ser un menor sin ID
+        if (dto.TitularId.HasValue)
+        {
+            var titular = await _pacienteRepository.GetByIdAsync(dto.TitularId.Value);
+            if (titular == null)
+            {
+                return BadRequest(new { message = "El representante legal seleccionado no existe en el sistema." });
+            }
+            // --> NUEVA REGLA DE NEGOCIO <--
+            if (titular.EsRecienNacido || string.IsNullOrWhiteSpace(titular.Cedula)) 
+            {
+                return BadRequest(new { message = "El paciente seleccionado no posee un documento de identidad válido para ser representante legal." });
+            }
         }
 
         var pacienteExistente = await _pacienteRepository.GetByIdAsync(id);
         if (pacienteExistente == null)
         {
-            return NotFound();
+            return NotFound(new { message = "El paciente que intenta editar no fue encontrado." });
         }
 
-        // Actualizamos los campos
-        pacienteExistente.Cedula = paciente.Cedula;
-        pacienteExistente.Nombre = paciente.Nombre;
-        pacienteExistente.Apellido = paciente.Apellido;
-        pacienteExistente.FechaNacimiento = paciente.FechaNacimiento;
-        pacienteExistente.Sexo = paciente.Sexo;
-        pacienteExistente.Telefono = paciente.Telefono;
-        pacienteExistente.TelefonoAlternativo = paciente.TelefonoAlternativo;
-        pacienteExistente.Correo = paciente.Correo;
-        pacienteExistente.CorreoAlternativo = paciente.CorreoAlternativo;
-        pacienteExistente.Domicilio = paciente.Domicilio;
-        pacienteExistente.NotaMedica = paciente.NotaMedica;
-        pacienteExistente.NumeroAfiliado = paciente.NumeroAfiliado;
-        pacienteExistente.Parentesco = paciente.Parentesco;
-        pacienteExistente.TitularId = paciente.TitularId;
-        pacienteExistente.EsRecienNacido = paciente.EsRecienNacido;
+        // 3. Mapeo del DTO a la Entidad existente
+        pacienteExistente.Cedula = dto.Cedula;
+        pacienteExistente.EsRecienNacido = dto.EsRecienNacido;
+        pacienteExistente.Nombre = dto.Nombre;
+        pacienteExistente.Apellido = dto.Apellido;
+        pacienteExistente.FechaNacimiento = DateTime.SpecifyKind(dto.FechaNacimiento, DateTimeKind.Utc);
+        pacienteExistente.Sexo = dto.Sexo;
+        pacienteExistente.Telefono = dto.Telefono;
+        pacienteExistente.TelefonoAlternativo = dto.TelefonoAlternativo;
+        pacienteExistente.Correo = dto.Correo;
+        pacienteExistente.CorreoAlternativo = dto.CorreoAlternativo;
+        pacienteExistente.Domicilio = dto.Domicilio;
+        pacienteExistente.NotaMedica = dto.NotaMedica;
+        pacienteExistente.NumeroAfiliado = dto.NumeroAfiliado;
+        pacienteExistente.Parentesco = dto.Parentesco;
+        pacienteExistente.TitularId = dto.TitularId;
 
         await _pacienteRepository.UpdateAsync(pacienteExistente);
 
-        return NoContent(); // 204 No Content indica actualización exitosa
+        return NoContent(); 
     }
 
     // GET: api/pacientes/{id}/historial

@@ -8,7 +8,7 @@ public interface IOrdenRepository
     Task<(IEnumerable<Orden> Ordenes, int TotalRecords)> GetOrdenesPaginadasAsync(OrdenQueryFilter filter);
     Task<Orden?> GetByIdAsync(Guid id);
     Task AddAsync(Orden orden);
-    Task UpdateAsync(Orden orden);
+    Task UpdateConDetallesAsync(Orden orden, List<OrdenDetalle> nuevosDetalles);
 
     // Métodos auxiliares para la creación inteligente
     Task<Paciente?> GetPacienteByIdAsync(Guid pacienteId);

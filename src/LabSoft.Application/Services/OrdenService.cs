@@ -34,6 +34,34 @@ public class OrdenService : IOrdenService
         });
     }
 
+    // public async Task<object?> GetByIdAsync(Guid id)
+    // {
+    //     var o = await _ordenRepository.GetByIdAsync(id);
+    //     if (o == null) return null;
+
+    //     return new 
+    //     {
+    //         Id = o.Id,
+    //         FechaCreacion = o.FechaCreacion,
+    //         Estado = o.Estado,
+    //         PacienteNombre = o.Paciente != null ? $"{o.Paciente.Nombre} {o.Paciente.Apellido}" : "Desconocido",
+            
+    //         // Lista plana original (Útil para imprimir el ticket de cobro en recepción)
+    //         DetallesPlanos = o.Detalles
+    //             .OrderBy(d => d.Examen?.Codigo)
+    //             .Select(d => new OrdenDetalleDto
+    //         {
+    //             Id = d.Id,
+    //             ItemNombre = d.Examen?.Nombre ?? "Examen",
+    //             Tipo = d.PanelId.HasValue ? "Panel" : "Individual",
+    //             Estado = d.Estado
+    //         }).ToList(),
+
+    //         // Nueva estructura jerárquica médica usando nuestro Helper
+    //         Especialidades = Common.EstructuraClinicaHelper.AgruparYConstruirEstructura(o.Detalles, o.Paciente?.Sexo)
+    //     };
+    // }
+
     public async Task<object?> GetByIdAsync(Guid id)
     {
         var o = await _ordenRepository.GetByIdAsync(id);
@@ -42,11 +70,35 @@ public class OrdenService : IOrdenService
         return new 
         {
             Id = o.Id,
+            // 1. SOLUCIÓN AL NÚMERO DE ORDEN (#0000 y #ORD-B450)
+            NumeroOrden = o.NumeroOrden, 
             FechaCreacion = o.FechaCreacion,
             Estado = o.Estado,
+            
+            // 2. SOLUCIÓN AL BLOQUEO DEL PACIENTE
+            PacienteId = o.PacienteId,
             PacienteNombre = o.Paciente != null ? $"{o.Paciente.Nombre} {o.Paciente.Apellido}" : "Desconocido",
             
-            // Lista plana original (Útil para imprimir el ticket de cobro en recepción)
+            // 3. SOLUCIÓN AL CARRITO VACÍO Y LAS EXCLUSIONES
+            ExamenIds = o.Detalles
+                .Where(d => d.PanelId == null)
+                .Select(d => d.ExamenId)
+                .ToList(),
+                
+            PanelesSolicitados = o.Detalles
+                .Where(d => d.PanelId.HasValue && d.Panel != null)
+                .GroupBy(d => d.Panel) // Agrupamos por el objeto Panel completo
+                .Select(g => new PanelSolicitudDto
+                {
+                    PanelId = g.Key!.Id,
+                    // Magia de C#: (Todos los IDs del panel original) EXCEPTO (Los IDs que sí están en la orden)
+                    ExamenesExcluidosIds = g.Key!.PanelExamenes
+                        .Select(pe => pe.ExamenId)
+                        .Except(g.Select(d => d.ExamenId))
+                        .ToList()
+                }).ToList(),
+
+            // Mantenemos lo que ya tenías para la vista de Detalles (Impresión)
             DetallesPlanos = o.Detalles
                 .OrderBy(d => d.Examen?.Codigo)
                 .Select(d => new OrdenDetalleDto
@@ -57,7 +109,6 @@ public class OrdenService : IOrdenService
                 Estado = d.Estado
             }).ToList(),
 
-            // Nueva estructura jerárquica médica usando nuestro Helper
             Especialidades = Common.EstructuraClinicaHelper.AgruparYConstruirEstructura(o.Detalles, o.Paciente?.Sexo)
         };
     }
@@ -158,13 +209,13 @@ public class OrdenService : IOrdenService
             orden.Estado = dto.Estado;
         }
 
-        // Limpiamos los detalles anteriores para recalcular con los nuevos cambios (agregar/quitar)
-        orden.Detalles.Clear();
+        // --- EL CAMBIO CLAVE: Creamos una lista NUEVA en lugar de limpiar la vieja ---
+        var nuevosDetalles = new List<OrdenDetalle>();
 
         // 1. Procesar Exámenes Sueltos actualizados
         foreach (var examenId in dto.ExamenIds)
         {
-            orden.Detalles.Add(new OrdenDetalle
+            nuevosDetalles.Add(new OrdenDetalle
             {
                 Id = Guid.NewGuid(),
                 OrdenId = orden.Id,
@@ -186,7 +237,7 @@ public class OrdenService : IOrdenService
 
             foreach (var pe in examenesAProcesar)
             {
-                orden.Detalles.Add(new OrdenDetalle
+                nuevosDetalles.Add(new OrdenDetalle
                 {
                     Id = Guid.NewGuid(),
                     OrdenId = orden.Id,
@@ -197,7 +248,8 @@ public class OrdenService : IOrdenService
             }
         }
 
-        await _ordenRepository.UpdateAsync(orden);
+        // Le pasamos la orden y la nueva lista al repositorio para que haga la transacción segura
+        await _ordenRepository.UpdateConDetallesAsync(orden, nuevosDetalles);
         return true;
     }
 

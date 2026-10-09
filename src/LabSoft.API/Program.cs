@@ -66,6 +66,9 @@ builder.Services.AddScoped<LabSoft.Application.Interfaces.ITokenService, TokenSe
 //SERVICIOS PARA EL USUARIO
 builder.Services.AddScoped<LabSoft.Application.Interfaces.IUsuarioService, LabSoft.Application.Services.UsuarioService>();
 builder.Services.AddScoped<LabSoft.Application.Interfaces.IUsuarioRepository, LabSoft.Infrastructure.Repositories.UsuarioRepository>();
+//SERVICCIOS PARA EL DASHBOARD
+builder.Services.AddScoped<LabSoft.Application.Interfaces.IDashboardService, LabSoft.Application.Services.DashboardService>();
+builder.Services.AddScoped<LabSoft.Application.Interfaces.IDashboardRepository, LabSoft.Infrastructure.Repositories.DashboardRepository>();
 //SERVICIOS PARA AUDITORIA
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddScoped<LabSoft.Application.Interfaces.ICurrentUserService, LabSoft.API.Services.CurrentUserService>();
@@ -87,7 +90,12 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     });
 
 builder.Services.AddAuthorization();
-builder.Services.AddControllers();
+builder.Services.AddControllers()
+    .AddJsonOptions(options =>
+    {
+        // Esto le dice a C# que convierta los Enums a texto ("Masculino") en lugar de números (0)
+        options.JsonSerializerOptions.Converters.Add(new System.Text.Json.Serialization.JsonStringEnumConverter());
+    });
 
 // REGISTRO MODERNO DE FLUENTVALIDATION
 builder.Services.AddFluentValidationAutoValidation();
@@ -96,6 +104,18 @@ builder.Services.AddFluentValidationClientsideAdapters();
 // Esto busca automáticamente todos los validadores en el proyecto de Application:
 builder.Services.AddValidatorsFromAssemblyContaining<LabSoft.Application.Validators.RegistrarUsuarioValidator>();
 
+// 1. AGREGAR ESTO: Configurar política de CORS
+// PARA PROBAR FRONTEND LUEGO QUITARLOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOO
+// QUITAR ESTA Y LA LINEA DE ABAJOOOOO app.UseCors("AllowFrontend");
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy("AllowFrontend", policy =>
+    {
+        policy.WithOrigins("http://localhost:5173") // El puerto exacto de tu frontend Vite
+              .AllowAnyHeader()
+              .AllowAnyMethod();
+    });
+});
 
 var app = builder.Build();
 
@@ -133,6 +153,10 @@ if (app.Environment.IsDevelopment())
 
 // 1. FORZAR HTTPS OBLIGATORIO (Redirige cualquier petición HTTP a HTTPS)
 app.UseHttpsRedirection();
+
+// AGREGAR ESTO PARA PROBAR FRONTEND LUEGO QUITARLOOOOOOOOOOOOOOOOO
+// QUITAR ESTA Y LA LINEA DE ARRIBAAAAAAAAAAAAAAAA builder.Services.AddCors
+app.UseCors("AllowFrontend");
 
 // 2. ORDEN DE SEGURIDAD (Primero autenticar quién es, luego autorizar qué puede hacer)
 app.UseAuthentication();

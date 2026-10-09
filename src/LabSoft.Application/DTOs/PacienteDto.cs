@@ -10,6 +10,7 @@ public class PacienteDto
     public string Nombre { get; set; } = null!;
     public string Apellido { get; set; } = null!;
     public DateTime FechaNacimiento { get; set; }
+    public string EdadFormateada { get; set; } = string.Empty;
     public SexoEnum Sexo { get; set; }
     
     // --- DATOS CALCULADOS PARA EL HISTORIAL ---
@@ -28,4 +29,6 @@ public class PacienteDto
     public string? NumeroAfiliado { get; set; }
     public ParentescoEnum? Parentesco { get; set; }
     public Guid? TitularId { get; set; }
+    public string? TitularNombre { get; set; }
+    public string? TitularCedula { get; set; }
 }

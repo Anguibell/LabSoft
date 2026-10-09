@@ -69,6 +69,7 @@ public class ResultadoService : IResultadoService
         return ordenes.Select(o => new
         {
             OrdenId = o.Id,
+            NumeroOrden = o.NumeroOrden.ToString("D6"),
             FechaCreacion = o.FechaCreacion,
             EstadoOrden = o.Estado,
             Paciente = o.Paciente != null ? $"{o.Paciente.Nombre} {o.Paciente.Apellido}" : "Desconocido",
@@ -211,6 +212,7 @@ public class ResultadoService : IResultadoService
         return ordenesPaciente.Select(o => new
         {
             OrdenId = o.Id,
+            NumeroOrden = o.NumeroOrden.ToString("D6"),
             FechaCreacion = o.FechaCreacion,
             EstadoOrden = o.Estado,
             Paciente = o.Paciente != null ? $"{o.Paciente.Nombre} {o.Paciente.Apellido}" : "Desconocido",
@@ -227,6 +229,7 @@ public class ResultadoService : IResultadoService
         return new
         {
             OrdenId = orden.Id,
+            NumeroOrden = orden.NumeroOrden.ToString("D6"),
             FechaCreacion = orden.FechaCreacion,
             EstadoOrden = orden.Estado,
             Paciente = orden.Paciente != null ? $"{orden.Paciente.Nombre} {orden.Paciente.Apellido}" : "Desconocido",
@@ -242,6 +245,7 @@ public class ResultadoService : IResultadoService
         return ordenes.Select(orden => new
         {
             OrdenId = orden.Id,
+            NumeroOrden = orden.NumeroOrden.ToString("D6"),
             FechaCreacion = orden.FechaCreacion,
             EstadoOrden = orden.Estado,
             Paciente = orden.Paciente != null ? $"{orden.Paciente.Nombre} {orden.Paciente.Apellido}" : "Desconocido",
@@ -295,6 +299,7 @@ public class ResultadoService : IResultadoService
         return ordenes.Select(orden => new
         {
             OrdenId = orden.Id,
+            NumeroOrden = orden.NumeroOrden.ToString("D6"),
             FechaCreacion = orden.FechaCreacion,
             EstadoOrden = orden.Estado,
             Paciente = orden.Paciente != null ? $"{orden.Paciente.Nombre} {orden.Paciente.Apellido}" : "Desconocido",
@@ -318,7 +323,7 @@ public class ResultadoService : IResultadoService
                 Especialidades = new List<HistorialEspecialidadDto>()
             };
 
-            // 1. Filtramos los detalles válidos y los ordenamos por Código[cite: 18]
+            // 1. Filtramos los detalles válidos y los ordenamos por Código
             var detallesValidos = orden.Detalles
                 .Where(d => d.Examen != null)
                 .OrderBy(d => d.Examen!.Codigo);
@@ -340,22 +345,34 @@ public class ResultadoService : IResultadoService
                 // Procesamos cada examen dentro de esta especialidad
                 foreach (var detalle in grupo)
                 {
+                    // Intentamos construir el árbol con resultados, pero si no hay, mapeamos el examen base
                     var nodoRaiz = ConstruirArbolResultados(detalle.Examen!, detalle.Resultados.ToList(), orden.Paciente?.Sexo);
                     
                     if (nodoRaiz != null)
                     {
                         especialidadDto.Examenes.Add(nodoRaiz);
                     }
+                    else
+                    {
+                        // Fallback para que el examen aparezca aunque no tenga resultados procesados aún
+                        especialidadDto.Examenes.Add(new HistorialItemDto
+                        {
+                            ExamenNombre = detalle.Examen!.Nombre,
+                            Valor = "Pendiente",
+                            Unidad = detalle.Examen.Unidad ?? "",
+                            ValoresReferencia = "N/A",
+                            Estado = "Pendiente"
+                        });
+                    }
                 }
 
-                // Solo agregamos la especialidad si realmente tuvo algún examen procesado adentro
+                // Agregamos la especialidad siempre que pertenezca a la orden
                 if (especialidadDto.Examenes.Any())
                 {
                     dto.Especialidades.Add(especialidadDto);
                 }
             }
 
-            // Solo agregamos la orden si tiene alguna especialidad procesada
             if (dto.Especialidades.Any())
             {
                 historial.Add(dto);
@@ -367,7 +384,7 @@ public class ResultadoService : IResultadoService
 
     private HistorialItemDto? ConstruirArbolResultados(Examen examen, List<Resultado> resultadosOrden, SexoEnum? sexoPaciente)
     {
-        var resultado = resultadosOrden.FirstOrDefault(r => r.ExamenId == examen.Id);
+        var resultado = resultadosOrden.FirstOrDefault(r => r.ExamenId == examen.Id && r.Estado == "Validado");
         
         // LÓGICA DE VALORES DE REFERENCIA
         string refValue = examen.ValoresReferencia ?? "";
@@ -387,8 +404,8 @@ public class ResultadoService : IResultadoService
             Unidad = examen.Unidad ?? "",
             ValoresReferencia = refValue, 
             NotaClinica = (resultado != null && resultado.ImprimirObservacion && !string.IsNullOrWhiteSpace(resultado.NotaClinica)) 
-                          ? resultado.NotaClinica 
-                          : null,
+                ? resultado.NotaClinica 
+                : null,
             Estado = resultado?.Estado ?? "",
             FechaProcesamiento = resultado?.FechaProcesamiento
         };
@@ -509,4 +526,44 @@ public class ResultadoService : IResultadoService
             PageSize = filter.PageSize
         };
     }
+
+    public async Task<bool> InvalidarResultadoAsync(Guid id, InvalidarResultadoDto dto)
+    {
+        var userId = _currentUserService.GetUserId();
+        
+        // 1. Obtenemos el resultado
+        var resultado = await _resultadoRepository.GetResultadoByIdAsync(id);
+        if (resultado == null)
+            throw new KeyNotFoundException("El resultado especificado no existe.");
+
+        if (resultado.Estado != "Validado")
+            throw new InvalidOperationException("Solo se pueden invalidar resultados que ya tienen estatus de 'Validado'.");
+
+        // 2. Rompemos el sello y aplicamos auditoría
+        resultado.Estado = "Procesado";
+        resultado.MotivoInvalidacion = FormattingHelper.NormalizarTexto(dto.Motivo);
+        resultado.FechaInvalidacion = DateTime.UtcNow;
+        resultado.InvalidadoPorId = userId;
+
+        await _resultadoRepository.UpdateResultadoAsync(resultado);
+
+        // 3. Efecto Dominó (Bottom-Up): Des-sellar el Detalle Padre
+        var detalle = await _resultadoRepository.GetDetalleByIdAsync(resultado.OrdenDetalleId);
+        if (detalle != null && detalle.Estado.Equals("Validado", StringComparison.OrdinalIgnoreCase))
+        {
+            detalle.Estado = "Procesado";
+            await _resultadoRepository.UpdateDetalleAsync(detalle);
+
+            // 4. Efecto Dominó: Des-sellar la Orden Completa
+            var orden = detalle.Orden;
+            if (orden != null && orden.Estado.Equals("Validado", StringComparison.OrdinalIgnoreCase))
+            {
+                orden.Estado = "Procesado";
+                await _resultadoRepository.UpdateOrdenEstadoAsync(orden);
+            }
+        }
+
+        return true;
+    }
+    
 }

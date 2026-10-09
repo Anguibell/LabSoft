@@ -26,4 +26,9 @@ public class Resultado
     public Guid? ProcesadoPorId { get; set; }
     public Guid? ValidadoPorId { get; set; }
     public bool EsModificado { get; set; } = false;
+
+    // --- CAMPOS DE AUDITORÍA LEGAL ---
+    public string? MotivoInvalidacion { get; set; }
+    public DateTime? FechaInvalidacion { get; set; }
+    public Guid? InvalidadoPorId { get; set; }
 }

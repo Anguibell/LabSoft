@@ -21,38 +21,48 @@ public class AuthController : ControllerBase
         _tokenService = tokenService;
     }
 
+    // [HttpPost("register")]
+    // public async Task<IActionResult> Register([FromBody] RegistrarUsuarioDto dto)
+    // {
+    //     // 1. Verificar duplicidad de Email O Nombre de Usuario
+    //     if (await _context.Usuarios.AnyAsync(u => u.Email == dto.Email))
+    //         return BadRequest("El correo ya está registrado.");
+
+    //     if (await _context.Usuarios.AnyAsync(u => u.NombreUsuario == dto.NombreUsuario))
+    //         return BadRequest("El nombre de usuario ya está en uso.");
+
+    //     // 2. Validar que el rol sea uno de los permitidos
+    //     string rolEstandarizado = dto.Rol?.Trim().ToUpper() ?? string.Empty;
+    //     if (!RolesConstantes.EsValido(rolEstandarizado))
+    //     {
+    //         return BadRequest($"El rol '{dto.Rol}' no es válido. Roles permitidos: {string.Join(", ", RolesConstantes.Todos)}");
+    //     }
+
+    //     // 3. Hashear la contraseña con BCrypt
+    //     var usuario = new Usuario
+    //     {
+    //         Nombre = dto.Nombre,           
+    //         Apellido = dto.Apellido,
+    //         NombreUsuario = dto.NombreUsuario,
+    //         Email = dto.Email,
+    //         PasswordHash = BCrypt.Net.BCrypt.HashPassword(dto.Password),
+    //         Rol = rolEstandarizado,
+    //         Telefono = dto.Telefono,
+    //         Domicilio = dto.Domicilio
+    //     };
+
+    //     _context.Usuarios.Add(usuario);
+    //     await _context.SaveChangesAsync();
+
+    //     return Ok(new { message = "Usuario registrado exitosamente." });
+    // }
+
     [HttpPost("register")]
-    public async Task<IActionResult> Register([FromBody] RegistrarUsuarioDto dto)
+    public IActionResult Register([FromBody] RegistrarUsuarioDto dto)
     {
-        // 1. Verificar duplicidad de Email O Nombre de Usuario
-        if (await _context.Usuarios.AnyAsync(u => u.Email == dto.Email))
-            return BadRequest("El correo ya está registrado.");
-
-        if (await _context.Usuarios.AnyAsync(u => u.NombreUsuario == dto.NombreUsuario))
-            return BadRequest("El nombre de usuario ya está en uso.");
-
-        // 2. Validar que el rol sea uno de los permitidos
-        string rolEstandarizado = dto.Rol?.Trim().ToUpper() ?? string.Empty;
-        if (!RolesConstantes.EsValido(rolEstandarizado))
-        {
-            return BadRequest($"El rol '{dto.Rol}' no es válido. Roles permitidos: {string.Join(", ", RolesConstantes.Todos)}");
-        }
-
-        // 3. Hashear la contraseña con BCrypt
-        var usuario = new Usuario
-        {
-            NombreUsuario = dto.NombreUsuario,
-            Email = dto.Email,
-            PasswordHash = BCrypt.Net.BCrypt.HashPassword(dto.Password),
-            Rol = rolEstandarizado,
-            Telefono = dto.Telefono,
-            Domicilio = dto.Domicilio
-        };
-
-        _context.Usuarios.Add(usuario);
-        await _context.SaveChangesAsync();
-
-        return Ok(new { message = "Usuario registrado exitosamente." });
+        // BLOQUEO DE SEGURIDAD PARA MVP: 
+        // El sistema es privado y cerrado. Los usuarios solo se crean por Seeder o por un futuro panel SuperAdmin.
+        return StatusCode(StatusCodes.Status403Forbidden, new { message = "El registro público de usuarios se encuentra deshabilitado." });
     }
 
     [HttpPost("login")]
@@ -74,7 +84,12 @@ public class AuthController : ControllerBase
         { 
             token,
             refreshToken,
+            id = usuario.Id,              
+            email = usuario.Email,
             rol = usuario.Rol,
+            nombre = string.IsNullOrWhiteSpace($"{usuario.Nombre} {usuario.Apellido}") 
+                ? usuario.NombreUsuario 
+                : $"{usuario.Nombre} {usuario.Apellido}".Trim(),
             nombreUsuario = usuario.NombreUsuario
         });
     }

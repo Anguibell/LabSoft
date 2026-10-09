@@ -186,5 +186,24 @@ public class ResultadosController : ControllerBase
         }
     }
     
+    [HttpPost("{id}/invalidar")]
+    [Authorize] // Más adelante lo restringiremos con Roles
+    public async Task<IActionResult> InvalidarResultado(Guid id, [FromBody] InvalidarResultadoDto dto)
+    {
+        try
+        {
+            await _resultadoService.InvalidarResultadoAsync(id, dto);
+            return Ok(new { message = "Resultado invalidado y abierto para corrección exitosamente." });
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
+        catch (Exception ex)
+        {
+            return StatusCode(500, new { message = "Error interno al invalidar el resultado.", error = ex.Message });
+        }
+    }
+
     
 }

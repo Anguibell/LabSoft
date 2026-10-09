@@ -78,8 +78,8 @@ namespace LabSoft.Infrastructure.Services
             var selloLabPath = Path.Combine(basePath, "Assets", "images", "selloLab.svg");
 
             // Define la URL (luego la cambiarás por el dominio real de tu frontend en React)
-            string urlValidacion = $"https://labgenesis.com/validar/{orden.Id}";
-            byte[] qrImageBytes = GenerarQrValidacion(urlValidacion);
+            //string urlValidacion = $"https://labgenesis.com/validar/{orden.Id}";
+            //byte[] qrImageBytes = GenerarQrValidacion(urlValidacion);
 
             var pdfBytes = Document.Create(container =>
             {
@@ -125,12 +125,13 @@ namespace LabSoft.Infrastructure.Services
                             header.Item().AlignCenter().Text("LABORATORIO CLINICO ¨GENESIS¨").FontSize(18).Bold().FontColor(Colors.Blue.Darken3);
                             header.Item().AlignCenter().Text("RIF NO. J-31283999-6").FontSize(10).SemiBold().FontColor(Colors.Grey.Darken3);
                             header.Item().AlignCenter().Text("Sector Noriega Trigo, Avenida 21, Casa N° 24-161").FontSize(9).FontColor(Colors.Grey.Darken2);
-                            header.Item().AlignCenter().Text("(Frente a la Emergencia del Hospital Noriega Trigo), San Francisco, Edo Zulia").FontSize(9).FontColor(Colors.Grey.Darken2);
+                            header.Item().AlignCenter().Text("(Detrás del cafetín, al lado de la línea de taxi frente a la Emergencia del Hospital Noriega Trigo), San Francisco, Edo Zulia").FontSize(9).FontColor(Colors.Grey.Darken2);
                         });
 
                         // Columna Derecha: Espacio vacío "fantasma" con el mismo ancho del logo (50)
                         // Esto es lo que logra el centrado perfecto del texto respecto a la página.
-                        row.ConstantItem(50).AlignMiddle().Image(qrImageBytes);
+                        //row.ConstantItem(50).AlignMiddle().Image(qrImageBytes); // <-- OCULTO EN EL MVP
+                        row.ConstantItem(50); // <-- MANTIENE EL ESPACIO PARA CENTRAR EL TEXTO
                     });
                     
                     // Cuerpo / Contenido dinámico
@@ -177,7 +178,7 @@ namespace LabSoft.Infrastructure.Services
                             });
 
                             var detallesPorEspecialidad = orden.Detalles
-                                .Where(d => d.Examen != null)
+                                .Where(d => d.Examen != null && d.Estado == "Validado")
                                 .GroupBy(d => d.Examen.Especialidad?.Nombre ?? "GENERAL")
                                 .OrderBy(g => g.Min(d => d.Examen.Codigo))
                                 .ToList();

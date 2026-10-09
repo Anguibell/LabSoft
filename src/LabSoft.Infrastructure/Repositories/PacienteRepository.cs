@@ -16,12 +16,16 @@ public class PacienteRepository : IPacienteRepository
 
     public async Task<IEnumerable<Paciente>> GetAllAsync()
     {
-        return await _context.Pacientes.ToListAsync();
+        return await _context.Pacientes
+            .Include(p => p.Titular) 
+            .ToListAsync();
+
     }
 
     public async Task<IEnumerable<Paciente>> SearchAsync(string filtro)
     {
         return await _context.Pacientes
+            .Include(p => p.Titular)
             .Where(p => (p.Cedula != null && p.Cedula.Contains(filtro)) || 
                          p.Nombre.ToLower().Contains(filtro.ToLower()) || 
                          p.Apellido.ToLower().Contains(filtro.ToLower()))
@@ -30,7 +34,9 @@ public class PacienteRepository : IPacienteRepository
 
     public async Task<Paciente?> GetByIdAsync(Guid id)
     {
-        return await _context.Pacientes.FindAsync(id);
+        return await _context.Pacientes
+            .Include(p => p.Titular) 
+            .FirstOrDefaultAsync(p => p.Id == id);
     }
 
 
@@ -48,7 +54,9 @@ public class PacienteRepository : IPacienteRepository
 
     public async Task<(IEnumerable<Paciente> Pacientes, int TotalRecords)> GetPacientesPaginadosAsync(PacienteQueryFilter filter)
     {
-        var query = _context.Pacientes.AsQueryable();
+        var query = _context.Pacientes
+            .Include(p => p.Titular)
+            .AsQueryable();
 
         // Filtro de Texto Libre
         if (!string.IsNullOrWhiteSpace(filter.TerminoBusqueda))
@@ -129,4 +137,22 @@ public class PacienteRepository : IPacienteRepository
 
         return (pacientes, totalRecords);
     }
+
+
+    public async Task<bool> ExisteCedulaAsync(string cedula, Guid? pacienteIdAExcluir = null)
+    {
+        if (string.IsNullOrWhiteSpace(cedula)) return false;
+
+        var query = _context.Pacientes.Where(p => p.Cedula == cedula);
+
+        // Si estamos editando, excluimos al paciente actual de la búsqueda
+        if (pacienteIdAExcluir.HasValue)
+        {
+            query = query.Where(p => p.Id != pacienteIdAExcluir.Value);
+        }
+
+        return await query.AnyAsync();
+    }
+
+    
 }
